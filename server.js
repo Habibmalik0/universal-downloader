@@ -24,7 +24,7 @@ app.post('/api/extract', (req, res) => {
     }
 
     // Client chain fallback bypasses PO-Token requirements reliably
-    const command = `yt-dlp -j --no-warnings --extractor-args "youtube:player_client=mweb,tv_embedded" "${url}"`;
+    const command = `yt-dlp -j --no-warnings --cookies ./cookies.txt "${url}"`;
 
     exec(command, { maxBuffer: 1024 * 1024 * 20 }, (error, stdout, stderr) => {
         if (error) {
@@ -97,11 +97,11 @@ app.get('/api/stream', (req, res) => {
     res.setHeader('Content-Type', 'video/mp4');
 
     const ytdlp = spawn('yt-dlp', [
-        '--extractor-args', 'youtube:player_client=mweb,tv_embedded',
-        '-f', formatId,
-        '-o', '-',
-        videoUrl
-    ]);
+    '--cookies', './cookies.txt',
+    '-f', formatId,
+    '-o', '-',
+    videoUrl
+]);
 
     ytdlp.stdout.pipe(res);
 
