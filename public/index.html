@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Video Downloader</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .container { width: 100%; max-width: 650px; background: #1e293b; border-radius: 12px; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        h1 { font-size: 1.8rem; margin-bottom: 20px; text-align: center; color: #38bdf8; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 25px; }
+        input[type="url"] { flex: 1; padding: 14px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 1rem; outline: none; }
+        input[type="url"]:focus { border-color: #38bdf8; }
+        button.btn-submit { padding: 14px 24px; border: none; background: #0284c7; color: white; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        button.btn-submit:hover { background: #0369a1; }
+        .spinner { display: none; text-align: center; margin: 20px 0; color: #94a3b8; }
+        .results-card { display: none; background: #0f172a; border-radius: 8px; padding: 20px; margin-top: 20px; border: 1px solid #334155; }
+        .preview-img { width: 100%; height: auto; border-radius: 6px; margin-bottom: 15px; }
+        .video-title { font-size: 1.1rem; margin-bottom: 15px; line-height: 1.4; }
+        .format-list { display: flex; flex-direction: column; gap: 10px; }
+        .format-item { display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 12px 16px; border-radius: 6px; }
+        .download-btn { background: #10b981; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.9rem; font-weight: bold; }
+        .download-btn:hover { background: #059669; }
+        .error-box { display: none; background: #7f1d1d; color: #fca5a5; padding: 12px; border-radius: 6px; margin-top: 15px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Universal Downloader</h1>
+    
+    <div class="input-group">
+        <input type="url" id="targetUrl" placeholder="Paste YouTube, TikTok, or Instagram Link..." required>
+        <button class="btn-submit" onclick="extractMedia()">Fetch</button>
+    </div>
+
+    <div class="spinner" id="loading">Processing URL metadata...</div>
+    <div class="error-box" id="errorMsg"></div>
+
+    <div class="results-card" id="results">
+        <img id="thumb" class="preview-img" src="" alt="Thumbnail">
+        <div id="title" class="video-title"></div>
+        <div class="format-list" id="formatContainer"></div>
+    </div>
+</div>
+
+<script>
+    async function extractMedia() {
+        const url = document.getElementById('targetUrl').value;
+        const loading = document.getElementById('loading');
+        const errorMsg = document.getElementById('errorMsg');
+        const results = document.getElementById('results');
+        const formatContainer = document.getElementById('formatContainer');
+
+        if (!url) return;
+
+        // Reset display state
+        loading.style.display = 'block';
+        errorMsg.style.display = 'none';
+        results.style.display = 'none';
+        formatContainer.innerHTML = '';
+
+        try {
+            const response = await fetch('/api/extract', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url })
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error);
+            }
+
+            // Populate preview details
+            document.getElementById('thumb').src = data.thumbnail;
+            document.getElementById('title').innerText = data.title;
+
+            // Render available format options
+            if (data.formats.length === 0) {
+                formatContainer.innerHTML = '<p style="color:#94a3b8">No direct MP4 formats available for this link.</p>';
+            } else {
+                data.formats.forEach(fmt => {
+                    const item = document.createElement('div');
+                    item.className = 'format-item';
+                    item.innerHTML = `
+                        <span><strong>MP4</strong> - ${fmt.quality} (${fmt.filesize_mb} MB)</span>
+                        <a href="/api/stream?url=${encodeURIComponent(url)}&format_id=${fmt.format_id}" class="download-btn">Download</a>
+                    `;
+                    formatContainer.appendChild(item);
+                });
+            }
+
+            results.style.display = 'block';
+        } catch (err) {
+            errorMsg.innerText = err.message || 'Error communicating with extraction engine.';
+            errorMsg.style.display = 'block';
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+</script>
+
+</body>
+</html>
